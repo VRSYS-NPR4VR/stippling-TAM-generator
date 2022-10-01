@@ -7,27 +7,24 @@
 using namespace std;
 using namespace cv;
 
-Generator::Generator()
-{
-  /*std::shared_ptr<Walnut::Image> test = std::make_shared<Walnut::Image>("LogoV3.png");
-  std::vector <std::shared_ptr<Walnut::Image>> tam{test};*/
-}
+Generator::Generator(){ }
 
 double generate_mean(Mat input)
 {
-  std::cout << "generator:" << std::endl;
-  std::cout << input.size << std::endl;
+  //std::cout << "generator:" << std::endl;
+  //std::cout << input.size << std::endl;
   double mean = 0.0;
   for (int i = 0; i < input.rows; i++) 
   {
     for (int j = 0; j < input.cols; j++)
     {
       mean += input.at<cv::Vec3d>(i, j)[0] + input.at<cv::Vec3d>(i, j)[1] + input.at<cv::Vec3d>(i, j)[2];
+      /*std::cout << "rgb at: " << i << "," << j << ": " << input.at<cv::Vec3d>(i, j)[0] << input.at<cv::Vec3d>(i, j)[1] << input.at<cv::Vec3d>(i, j)[2] << std::endl;*/
     }
   }
   mean = mean / /*input.rows*/(input.rows * input.cols);
-  std::cout << "mean after div:" << std::endl;
-  std::cout << mean << std::endl;
+  //std::cout << "mean after div:" << std::endl;
+  //std::cout << mean << std::endl;
   return mean;
 }
 
@@ -92,21 +89,22 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       //auto mean = generate_mean(mats[i]);
       //main generation loop
       for (int j = 0; j < mats.size(); j++) {
-        double tone_value = 0.0;
+        double tone_value = 1000000.0;
         //obtain a random number from hardware
         std::random_device rd;
         //seed the generator
         std::mt19937 gen(rd());
-        auto mean = generate_mean(mats[j]);
-        while (tone_value < tone_values[0]) {
-          //place textures randomly
+        while ((int)tone_value > (int)tone_values[0]) {
+          //place textures randomly until desired tone value is reached
           std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          //std::cout << "cols/rows:--------------------------" << std::endl;
-          //std::cout << mats[i].cols << std::endl;
-          //std::cout << mats[i].rows << std::endl;
           copy_tex.copyTo(mats[j](Rect(distr(gen), distr(gen), texture.cols, texture.rows)));
-          tone_value += 0.01f;
+          tone_value = generate_mean(mats[j]);
+          /*std::cout << "mean:" << std::endl;
+          std::cout << (int)tone_value << std::endl;
+          std::cout << ">" << std::endl;
+          std::cout << (int)tone_values[0] << std::endl;*/
         }
+        /*std::cout << "------------------------------------------" << std::endl;*/
       }
       /*namedWindow("image", WINDOW_AUTOSIZE);
       imshow("image", x4);

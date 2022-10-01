@@ -19,10 +19,10 @@ public:
 		cv::imshow("image", *cv_texture);
 		cv::waitKey(30);*/
 		logo = std::make_shared<Walnut::Image>("LogoV3.png");
-		float initial = leftmost_tone_value;
+		double initial = leftmost_tone_value;
 		for (int i = 0; i < image_number; i++) {
 			tone_values.push_back(initial);
-			initial += 1.0f;
+			initial += 100.0;
 		}
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
 		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
@@ -33,7 +33,7 @@ public:
 		ImGui::Begin("Settings");
 		ImGui::BeginVertical(1);
 		ImGui::SliderInt("Number of Rows", &image_number, 4, 10);
-		ImGui::SliderFloat("Initial Brightness", &leftmost_tone_value, 0.0f, 1.0f);
+		ImGui::SliderFloat("Initial Brightness", &leftmost_tone_value, 50.0f, 1000.0f);
 		ImGui::Combo("Resolution", &current_item, " 540x540\0 1080x1080\0 2160x2160");
 		ImGui::Text("Stippling Texture:");
 		//ImGui::BeginDragDropSource;
@@ -97,7 +97,7 @@ private:
 	std::vector<std::shared_ptr<Walnut::Image>> tam;
 	int stippling_dot_size = 50;
 	std::vector<float> tone_values;
-	float leftmost_tone_value = 0.5f;
+	float leftmost_tone_value = 700.0f;
 };
 
 Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
