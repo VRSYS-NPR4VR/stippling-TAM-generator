@@ -104,6 +104,11 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
           std::cout << ">" << std::endl;
           std::cout << (int)tone_values[0] << std::endl;*/
         }
+        if (j != 3)
+        {
+          auto point = (mats[j + 1].rows / 2) - (mats[j].rows / 2);
+          mats[j].copyTo(mats[j + 1](Rect(point,point, mats[j].rows, mats[j].cols)));
+        }
         /*std::cout << "------------------------------------------" << std::endl;*/
       }
       /*namedWindow("image", WINDOW_AUTOSIZE);
