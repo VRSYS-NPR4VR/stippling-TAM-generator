@@ -4,19 +4,12 @@
 #include <functional>
 #include <string>
 
-#include "opencv2/core.hpp"
-#include "opencv2/highgui.hpp"
+#include <opencv2/opencv.hpp>
 
 #include "Walnut/Image.h"
 
 class Generator {
 public:
   Generator();
-  std::vector<std::shared_ptr<Walnut::Image>> generate_TAM(int level, int max_res, std::string path);
-  //std::vector <std::shared_ptr<cv::Mat>> const get_tam();
-  //int c = 0;
-//private:
-//  std::vector<int> a;
-//  int b[10] = { 0,1,2,3,4,5,6,7,8,9 };
-//  std::vector<std::shared_ptr<cv::Mat>> tam;
+  std::vector<std::shared_ptr<Walnut::Image>> generate_TAM(int level, int max_res, std::string path, cv::Mat texture, int stippling_dot_size, std::vector<float> const& tone_values);
 };
