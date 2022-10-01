@@ -13,8 +13,8 @@ class ExampleLayer : public Walnut::Layer
 public:
 	virtual void OnAttach() override 
 	{
-		texture = std::make_shared<Walnut::Image>("stippling_brush_texture.png");
-		cv_texture = std::make_shared<cv::Mat>(cv::imread("stippling_brush_texture.png", cv::IMREAD_UNCHANGED));
+		texture = std::make_shared<Walnut::Image>("transparent_stippling_dot_50x50.png");
+		cv_texture = std::make_shared<cv::Mat>(cv::imread("transparent_stippling_dot_50x50.png", cv::IMREAD_UNCHANGED));
 		/*cv::namedWindow("image", cv::WINDOW_AUTOSIZE);
 		cv::imshow("image", *cv_texture);
 		cv::waitKey(30);*/
