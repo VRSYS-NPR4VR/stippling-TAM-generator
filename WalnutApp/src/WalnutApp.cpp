@@ -22,7 +22,7 @@ public:
 		double initial = leftmost_tone_value;
 		for (int i = 0; i < image_number; i++) {
 			tone_values.push_back(initial);
-			initial += 100.0;
+			initial -= 100.0;
 		}
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
 		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
@@ -32,7 +32,7 @@ public:
 		//Window1
 		ImGui::Begin("Settings");
 		ImGui::BeginVertical(1);
-		ImGui::SliderInt("Number of Rows", &image_number, 4, 10);
+		ImGui::SliderInt("Number of Columns", &image_number, 4, 10);
 		ImGui::SliderFloat("Initial Brightness", &leftmost_tone_value, 50.0f, 1000.0f);
 		ImGui::Combo("Resolution", &current_item, " 540x540\0 1080x1080\0 2160x2160");
 		ImGui::Text("Stippling Texture:");
@@ -82,8 +82,6 @@ public:
 		}
 		ImGui::EndHorizontal();
 		ImGui::End();
-
-		//ImGui::ShowDemoWindow();
 	}
 private:
 	std::shared_ptr<Walnut::Image> texture;
