@@ -9,34 +9,6 @@ using namespace cv;
 
 Generator::Generator(){ }
 
-void overlayImage(Mat& src, Mat& overlay, const Point& location)
-{
-  for (int y = max(location.y, 0); y < src.rows; ++y)
-  {
-    int fY = y - location.y;
-
-    if (fY >= overlay.rows)
-      break;
-
-    for (int x = max(location.x, 0); x < src.cols; ++x)
-    {
-      int fX = x - location.x;
-
-      if (fX >= overlay.cols)
-        break;
-
-      double opacity = ((double)overlay.data[fY * overlay.step + fX * overlay.channels() + 3]) / 255;
-
-      for (int c = 0; opacity > 0 && c < src.channels(); ++c)
-      {
-        unsigned char overlayPx = overlay.data[fY * overlay.step + fX * overlay.channels() + c];
-        unsigned char srcPx = src.data[y * src.step + x * src.channels() + c];
-        src.data[y * src.step + src.channels() * x + c] = srcPx * (1. - opacity) + overlayPx * opacity;
-      }
-    }
-  }
-}
-
 double generate_mean(Mat input)
 {
   //std::cout << "generator:" << std::endl;
@@ -46,7 +18,7 @@ double generate_mean(Mat input)
   {
     for (int j = 0; j < input.cols; j++)
     {
-      mean += input.at<cv::Vec4d>(i, j)[0] + input.at<cv::Vec4d>(i, j)[1] + input.at<cv::Vec4d>(i, j)[2];
+      mean += input.at<cv::Vec3d>(i, j)[0] + input.at<cv::Vec3d>(i, j)[1] + input.at<cv::Vec3d>(i, j)[2];
       /*std::cout << "rgb at: " << i << "," << j << ": " << input.at<cv::Vec3d>(i, j)[0] << input.at<cv::Vec3d>(i, j)[1] << input.at<cv::Vec3d>(i, j)[2] << std::endl;*/
     }
   }
@@ -54,6 +26,23 @@ double generate_mean(Mat input)
   //std::cout << "mean after div:" << std::endl;
   //std::cout << mean << std::endl;
   return mean;
+}
+
+void overlay_PNG(Mat& back, Mat const& front, cv::Point2i location)
+{
+  for (int i = 0; i < front.rows; i++)
+  {
+    for (int j = 0; j < front.cols; j++)
+    {
+      /*std::cout << "brga at: " << i << "," << j << ": " << front.at<cv::Vec4d>(i, j)[0] << ": " << front.at<cv::Vec4d>(i, j)[1] << ": " << front.at<cv::Vec4d>(i, j)[2] << ": " << front.at<cv::Vec4d>(i, j)[3] << std::endl;*/
+      if (front.at<Vec4d>(i, j)[3] != 0) 
+      {
+        back.at<Vec3d>(i + location.x, j + location.y)[0] = front.at<Vec4d>(i, j)[0];
+        back.at<Vec3d>(i + location.x, j + location.y)[1] = front.at<Vec4d>(i, j)[1];
+        back.at<Vec3d>(i + location.x, j + location.y)[2] = front.at<Vec4d>(i, j)[2];
+      }
+    }
+  }
 }
 
 std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, int max_res, std::string path, Mat texture, int stippling_dot_size, std::vector<float> const& tone_values)
@@ -98,27 +87,27 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       std::cout << "cv_tam.size" << cv_tam.size() << std::endl;
 
       //create images
-      Mat x1(x1_res, x1_res, CV_64FC4);
-      Mat x2(x2_res, x2_res, CV_64FC4);
-      Mat x3(x3_res, x3_res, CV_64FC4);
-      Mat x4(max_res, max_res, CV_64FC4);
+      Mat x1(x1_res, x1_res, CV_64FC3);
+      Mat x2(x2_res, x2_res, CV_64FC3);
+      Mat x3(x3_res, x3_res, CV_64FC3);
+      Mat x4(max_res, max_res, CV_64FC3);
 
       std::vector<Mat> mats({ x1,x2,x3,x4 });
 
       //set to white
       for (auto& element : mats) {
-        /*element.setTo(Scalar(255, 255, 255, 0));*/
-        for (int i = 0; i < element.rows; i++)
-        {
-          for (int j = 0; j < element.cols; j++)
-          {
-            element.at<cv::Vec4d>(i, j)[0] = 255; 
-            element.at<cv::Vec4d>(i, j)[1] = 255;
-            element.at<cv::Vec4d>(i, j)[2] = 255;
-            element.at<cv::Vec4d>(i, j)[3] = 0;
-            /*std::cout << "rgb at: " << i << "," << j << ": " << element.at<cv::Vec3d>(i, j)[0] << " " << element.at<cv::Vec3d>(i, j)[1] << " " << element.at<cv::Vec3d>(i, j)[2] << std::endl;*/
-          }
-        }
+        element.setTo(Scalar(255, 255, 255));
+        //for (int i = 0; i < element.rows; i++)
+        //{
+        //  for (int j = 0; j < element.cols; j++)
+        //  {
+        //    element.at<cv::Vec4d>(i, j)[0] = 255; 
+        //    element.at<cv::Vec4d>(i, j)[1] = 255;
+        //    element.at<cv::Vec4d>(i, j)[2] = 255;
+        //    element.at<cv::Vec4d>(i, j)[3] = 0;
+        //    /*std::cout << "rgb at: " << i << "," << j << ": " << element.at<cv::Vec3d>(i, j)[0] << " " << element.at<cv::Vec3d>(i, j)[1] << " " << element.at<cv::Vec3d>(i, j)[2] << std::endl;*/
+        //  }
+        //}
       }
 
       auto copy_tex = texture;
@@ -135,12 +124,8 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
         while ((int)tone_value > (int)tone_values[0]) {
           //place textures randomly until desired tone value is reached
           std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          Mat channels[4];
-          split(copy_tex, channels);
-          Mat alpha = channels[3];
-
-          copy_tex.copyTo(mats[j](Rect(distr(gen), distr(gen), texture.cols, texture.rows)));
-          /*overlayImage(mats[j], copy_tex, Point(distr(gen), distr(gen)));*/
+          /*copy_tex.copyTo(mats[j](Rect(distr(gen), distr(gen), texture.cols, texture.rows)));*/
+          overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
           tone_value = generate_mean(mats[j]);
           //tone_value -= 100;
           /*std::cout << "mean:" << std::endl;
