@@ -10,6 +10,23 @@ using namespace cv;
 
 Generator::Generator(){ }
 
+void overlay_PNG(Mat& back, Mat const& front, cv::Point2i location)
+{
+  for (int i = 0; i < front.rows; i++)
+  {
+    for (int j = 0; j < front.cols; j++)
+    {
+      /*std::cout << "brga at: " << i << "," << j << ": " << front.at<cv::Vec4d>(i, j)[0] << ": " << front.at<cv::Vec4d>(i, j)[1] << ": " << front.at<cv::Vec4d>(i, j)[2] << ": " << front.at<cv::Vec4d>(i, j)[3] << std::endl;*/
+      if (front.at<Vec4d>(i, j)[3] > 200)
+      {
+        back.at<Vec3d>(i + location.x, j + location.y)[0] = front.at<Vec4d>(i, j)[0];
+        back.at<Vec3d>(i + location.x, j + location.y)[1] = front.at<Vec4d>(i, j)[1];
+        back.at<Vec3d>(i + location.x, j + location.y)[2] = front.at<Vec4d>(i, j)[2];
+      }
+    }
+  }
+}
+
 double generate_mean(Mat input)
 {
 
@@ -70,28 +87,27 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       }
 
       auto copy_tex = texture;
-      //obtain a random number from hardware
-      std::random_device rd;
-      //seed the generator
-      std::mt19937 gen(rd());
-      //main generation loop
       for (int j = 0; j < mats.size(); j++) {
         double tone_value = generate_mean(mats[j]);
         while ((int)tone_value > (int)tone_values[i]) {
+          //obtain a random number from hardware
+          std::random_device rd;
+          //seed the generator
+          std::mt19937 gen(rd());
           //place textures randomly until desired tone value is reached
           std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          copy_tex.copyTo(mats[j](Rect(distr(gen), distr(gen), texture.cols, texture.rows)));
+          overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
           tone_value = generate_mean(mats[j]);
           /*std::cout << "mean:" << std::endl;
           std::cout << (int)tone_value << std::endl;
           std::cout << ">" << std::endl;
           std::cout << (int)tone_values[0] << std::endl;*/
         }
-        if (j != 3)
+        /*if (j != 3)
         {
           auto point = (mats[j + 1].rows / 2) - (mats[j].rows / 2);
           mats[j].copyTo(mats[j + 1](Rect(point,point, mats[j].rows, mats[j].cols)));
-        }
+        }*/
       }
 
       //Generate path
@@ -131,28 +147,28 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       std::vector<Mat> mats({ x1,x2,x3,x4 });
 
       auto copy_tex = texture;
-      //obtain a random number from hardware
-      std::random_device rd;
-      //seed the generator
-      std::mt19937 gen(rd());
       //main generation loop
       for (int j = 0; j < mats.size(); j++) {
         double tone_value = generate_mean(mats[j]);
         while ((int)tone_value > (int)tone_values[i]) {
+          //obtain a random number from hardware
+          std::random_device rd;
+          //seed the generator
+          std::mt19937 gen(rd());
           //place textures randomly until desired tone value is reached
           std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          copy_tex.copyTo(mats[j](Rect(distr(gen), distr(gen), texture.cols, texture.rows)));
+          overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
           tone_value = generate_mean(mats[j]);
           /*std::cout << "mean:" << std::endl;
           std::cout << (int)tone_value << std::endl;
           std::cout << ">" << std::endl;
           std::cout << (int)tone_values[0] << std::endl;*/
         }
-        if (j != 3)
+        /*if (j != 3)
         {
           auto point = (mats[j + 1].rows / 2) - (mats[j].rows / 2);
           mats[j].copyTo(mats[j + 1](Rect(point, point, mats[j].rows, mats[j].cols)));
-        }
+        }*/
       }
 
       //Generate path
