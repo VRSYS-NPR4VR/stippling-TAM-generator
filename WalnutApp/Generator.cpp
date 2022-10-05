@@ -17,11 +17,22 @@ void overlay_PNG(Mat& back, Mat const& front, cv::Point2i location)
     for (int j = 0; j < front.cols; j++)
     {
       /*std::cout << "brga at: " << i << "," << j << ": " << front.at<cv::Vec4d>(i, j)[0] << ": " << front.at<cv::Vec4d>(i, j)[1] << ": " << front.at<cv::Vec4d>(i, j)[2] << ": " << front.at<cv::Vec4d>(i, j)[3] << std::endl;*/
-      if (front.at<Vec4d>(i, j)[3] > 200)
+      if (front.at<Vec4d>(i, j)[3] != 0)
       {
-        back.at<Vec3d>(i + location.x, j + location.y)[0] = front.at<Vec4d>(i, j)[0];
-        back.at<Vec3d>(i + location.x, j + location.y)[1] = front.at<Vec4d>(i, j)[1];
-        back.at<Vec3d>(i + location.x, j + location.y)[2] = front.at<Vec4d>(i, j)[2];
+        auto front_b = front.at<Vec4d>(i, j)[0];
+        auto front_r = front.at<Vec4d>(i, j)[1];
+        auto front_g = front.at<Vec4d>(i, j)[2];
+
+        auto back_b = back.at<Vec3d>(i + location.x, j + location.y)[0];
+        auto back_r = back.at<Vec3d>(i + location.x, j + location.y)[1];
+        auto back_g = back.at<Vec3d>(i + location.x, j + location.y)[2];
+
+        auto alpha = front.at<Vec4d>(i, j)[3] / 255;
+        auto oneminusalpha = 1 - alpha;
+
+        back.at<Vec3d>(i + location.x, j + location.y)[0] = ((front_b * alpha) + (oneminusalpha * back_b));
+        back.at<Vec3d>(i + location.x, j + location.y)[1] = ((front_r * alpha) + (oneminusalpha * back_r));
+        back.at<Vec3d>(i + location.x, j + location.y)[2] = ((front_g * alpha) + (oneminusalpha * back_g));
       }
     }
   }
@@ -44,16 +55,6 @@ double generate_mean(Mat input)
 
 std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, int max_res, std::string path, Mat texture, int stippling_dot_size, std::vector<float> const& tone_values)
 {
-  ////////////////////////////////////
-  //cout << "Hello, World!" << endl;
-  //cout << "OpenCV version is " << CV_VERSION << endl;
-  //cout << "max_res" << max_res << endl;
-  //Mat img = imread("stippling_brush_texture.png");
-  //namedWindow("image", WINDOW_AUTOSIZE);
-  //imshow("image", img);
-  //waitKey(30);
-  //imwrite(path+"/img.png", img);
-  ///////////////////////////////////
   std::vector<std::shared_ptr<Walnut::Image>> tam;
   std::vector<std::shared_ptr<Mat>> cv_tam;
 
@@ -66,7 +67,7 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
   int x2_res = x3_res / 2;
   int x1_res = x2_res / 2;
   for (int i = 0; i < level; i++) {
-
+    std::cout << tam.size() << std::endl;
     /*leftmost column*/
     if (tam.size() == 0)
     {
@@ -91,12 +92,18 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
         double tone_value = generate_mean(mats[j]);
         while ((int)tone_value > (int)tone_values[i]) {
           //obtain a random number from hardware
-          std::random_device rd;
+          random_device rd;
           //seed the generator
-          std::mt19937 gen(rd());
+          default_random_engine gen{ rd() };
+          //mt19937 gen(rd());
           //place textures randomly until desired tone value is reached
-          std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
+          uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
           overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
+
+          //Point a(1, 3);
+          //Point b(5, 6);
+          //double res = cv::norm(a - b);//Euclidian distance
+
           tone_value = generate_mean(mats[j]);
           /*std::cout << "mean:" << std::endl;
           std::cout << (int)tone_value << std::endl;
@@ -117,10 +124,10 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       auto x4_path = path + "/" + std::to_string(i) + "_x" + std::to_string(max_res) + ".png";
 
       //Write to file
-      imwrite(x1_path, x1);
-      imwrite(x2_path, x2);
-      imwrite(x3_path, x3);
-      imwrite(x4_path, x4);
+      cv::imwrite(x1_path, x1);
+      cv::imwrite(x2_path, x2);
+      cv::imwrite(x3_path, x3);
+      cv::imwrite(x4_path, x4);
 
       //add to TAM
       tam.push_back(std::make_shared<Walnut::Image>(x1_path));
@@ -178,10 +185,10 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
       auto x4_path = path + "/" + std::to_string(i) + "_x" + std::to_string(max_res) + ".png";
 
       //Write to file
-      imwrite(x1_path, x1);
-      imwrite(x2_path, x2);
-      imwrite(x3_path, x3);
-      imwrite(x4_path, x4);
+      cv::imwrite(x1_path, x1);
+      cv::imwrite(x2_path, x2);
+      cv::imwrite(x3_path, x3);
+      cv::imwrite(x4_path, x4);
 
       //add to TAM
       tam.push_back(std::make_shared<Walnut::Image>(x1_path));

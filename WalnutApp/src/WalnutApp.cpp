@@ -20,9 +20,10 @@ public:
 		cv::waitKey(30);*/
 		logo = std::make_shared<Walnut::Image>("LogoV3.png");
 		double initial = leftmost_tone_value;
+		double step = (leftmost_tone_value - rightmost_tone_value) / image_number;
 		for (int i = 0; i < image_number; i++) {
 			tone_values.push_back(initial);
-			initial -= 100.0;
+			initial -= step;
 		}
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
 		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
@@ -55,11 +56,11 @@ public:
 		if (ImGui::Button("Generate")) {
 			tone_values.clear();
 			double initial = leftmost_tone_value;
+			double step = (leftmost_tone_value - rightmost_tone_value) / image_number;
 			for (int i = 0; i < image_number; i++) {
 				tone_values.push_back(initial);
-				initial += 1.0;
+				initial -= step;
 			}
-			std::cout << tone_values.size() << std::endl;
 			tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
 		}
 		
@@ -93,9 +94,10 @@ private:
 	std::string path = "./tam_images";
 	std::shared_ptr<Generator> generator;
 	std::vector<std::shared_ptr<Walnut::Image>> tam;
-	int stippling_dot_size = 50;
+	int stippling_dot_size = 100;
 	std::vector<float> tone_values;
 	float leftmost_tone_value = 700.0f;
+	float rightmost_tone_value = 400.0f;
 };
 
 Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
