@@ -7,39 +7,83 @@
 
 #include "Walnut/Image.h"
 #include "../Generator.h"
+//#ifndef loading.h
+//#include "../loading.h"
+//#endif // ! loading.cpp
 
 class ExampleLayer : public Walnut::Layer
 {
 public:
 	virtual void OnAttach() override 
 	{
-		texture = std::make_shared<Walnut::Image>("transparent_stippling_dot_50x50.png");
-		cv_texture = std::make_shared<cv::Mat>(cv::imread("transparent_stippling_dot_50x50.png", cv::IMREAD_UNCHANGED));
-		/*cv::namedWindow("image", cv::WINDOW_AUTOSIZE);
-		cv::imshow("image", *cv_texture);
-		cv::waitKey(30);*/
-		logo = std::make_shared<Walnut::Image>("LogoV3.png");
+		//load example textures
+		for (int i = 1; i <= 8; i++)
+		{
+			auto path = "example_" + std::to_string(i) + ".png";
+			textures.push_back(std::make_shared<Walnut::Image>(path));
+			cv_textures.push_back(std::make_shared<cv::Mat>(cv::imread(path, cv::IMREAD_UNCHANGED)));
+		}
+		texture = textures[0];
+		add = std::make_shared<Walnut::Image>("add.png");
+		cv_texture = cv_textures[0];
 		double initial = leftmost_tone_value;
 		double step = (leftmost_tone_value - rightmost_tone_value) / image_number;
 		for (int i = 0; i < image_number; i++) {
-			tone_values.push_back(initial);
 			initial -= step;
+			tone_values.push_back(initial);
 		}
+
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
-		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
+		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, size, tone_values);
 	}
 	virtual void OnUIRender() override
 	{
 		//Window1
+		ImGuiIO& io = ImGui::GetIO();
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.WindowMinSize.x = 500.0f;
 		ImGui::Begin("Settings");
 		ImGui::BeginVertical(1);
-		ImGui::SliderInt("Number of Columns", &image_number, 4, 10);
-		ImGui::SliderFloat("Initial Brightness", &leftmost_tone_value, 50.0f, 1000.0f);
-		ImGui::Combo("Resolution", &current_item, " 540x540\0 1080x1080\0 2160x2160");
+		ImGui::Text("Number of Columns:");
+		ImGui::SliderInt("cols", &image_number, 4, 10);
+		ImGui::Text("Brightness brightest level:");
+		ImGui::SliderFloat("b1", &leftmost_tone_value, 500.0f, 900.0f);
+		ImGui::Text("Brightness darkest level:");
+		ImGui::SliderFloat("b2", &rightmost_tone_value, 100.0f, 500.0f);
+		ImGui::Text("Resolution:");
+		ImGui::Combo("", &current_item, " 540x540\0 1080x1080\0 2160x2160");
 		ImGui::Text("Stippling Texture:");
 		//ImGui::BeginDragDropSource;
-		ImGui::Image(texture->GetDescriptorSet(), { 100.0f, 100.0f });
-		ImGui::SliderInt("stippling_dot_size", &stippling_dot_size, 1, 400);
+		//if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+		//{
+		if (ImGui::ImageButton(texture->GetDescriptorSet(), { 100.0f, 100.0f }))
+		{
+			ImGui::OpenPopup("select_texture");
+		}
+		if (ImGui::BeginPopup("select_texture"))
+		{
+			ImGui::BeginHorizontal(100);
+			for (int i = 0; i < textures.size(); i++)
+			{
+				if (ImGui::ImageButton(textures[i]->GetDescriptorSet(), {50.0f, 50.0f}))
+				{
+					texture = textures[i];
+					cv_texture = cv_textures[i];
+				}
+			}
+			if (ImGui::ImageButton(add->GetDescriptorSet(), {50.0f, 50.0f }))
+			{
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::EndDragDropSource();
+				}
+			}
+			ImGui::EndHorizontal();
+			/*ImGui::Text("Aquarium");
+			ImGui::Separator();*/
+			ImGui::EndPopup();
+		}
+		ImGui::SliderInt("size", &size, 1, 200);
 		//ImGui::EndDragDropSource;
 		if (current_item == 0) {
 			resolution = 540;
@@ -58,14 +102,15 @@ public:
 			double initial = leftmost_tone_value;
 			double step = (leftmost_tone_value - rightmost_tone_value) / image_number;
 			for (int i = 0; i < image_number; i++) {
-				tone_values.push_back(initial);
 				initial -= step;
+				tone_values.push_back(initial);
 			}
-			tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, stippling_dot_size, tone_values);
+			tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, size, tone_values);
 		}
 		
 		ImGui::EndVertical();
 		ImGui::End();
+		style.WindowMinSize.x = 32.0f;
 
 		//Window2
 		ImGui::Begin("Preview");
@@ -82,19 +127,22 @@ public:
 			quad += 4;
 		}
 		ImGui::EndHorizontal();
+		/*ImGui::ShowDemoWindow();*/
 		ImGui::End();
 	}
 private:
+	std::vector<std::shared_ptr<Walnut::Image>> textures;
 	std::shared_ptr<Walnut::Image> texture;
+	std::shared_ptr<Walnut::Image> add;
+	std::vector<std::shared_ptr<cv::Mat>> cv_textures;
 	std::shared_ptr<cv::Mat> cv_texture;
-	std::shared_ptr<Walnut::Image> logo;
-	int image_number = 4;
+	int image_number = 6;
 	int current_item = 1;
 	int resolution = 1080;
 	std::string path = "./tam_images";
 	std::shared_ptr<Generator> generator;
 	std::vector<std::shared_ptr<Walnut::Image>> tam;
-	int stippling_dot_size = 100;
+	int size = 100;
 	std::vector<float> tone_values;
 	float leftmost_tone_value = 700.0f;
 	float rightmost_tone_value = 400.0f;

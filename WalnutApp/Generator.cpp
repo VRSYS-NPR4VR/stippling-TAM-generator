@@ -12,6 +12,7 @@ Generator::Generator(){ }
 
 void overlay_PNG(Mat& back, Mat const& front, cv::Point2i location)
 {
+  #pragma omp parallel for
   for (int i = 0; i < front.rows; i++)
   {
     for (int j = 0; j < front.cols; j++)
@@ -19,20 +20,23 @@ void overlay_PNG(Mat& back, Mat const& front, cv::Point2i location)
       /*std::cout << "brga at: " << i << "," << j << ": " << front.at<cv::Vec4d>(i, j)[0] << ": " << front.at<cv::Vec4d>(i, j)[1] << ": " << front.at<cv::Vec4d>(i, j)[2] << ": " << front.at<cv::Vec4d>(i, j)[3] << std::endl;*/
       if (front.at<Vec4d>(i, j)[3] != 0)
       {
-        auto front_b = front.at<Vec4d>(i, j)[0];
-        auto front_r = front.at<Vec4d>(i, j)[1];
-        auto front_g = front.at<Vec4d>(i, j)[2];
+        if (i + location.x < back.rows && j + location.y < back.cols && j + location.y >= 0  && i + location.x >= 0)
+        {
+          auto front_b = front.at<Vec4d>(i, j)[0];
+          auto front_r = front.at<Vec4d>(i, j)[1];
+          auto front_g = front.at<Vec4d>(i, j)[2];
 
-        auto back_b = back.at<Vec3d>(i + location.x, j + location.y)[0];
-        auto back_r = back.at<Vec3d>(i + location.x, j + location.y)[1];
-        auto back_g = back.at<Vec3d>(i + location.x, j + location.y)[2];
+          auto back_b = back.at<Vec3d>(i + location.x, j + location.y)[0];
+          auto back_r = back.at<Vec3d>(i + location.x, j + location.y)[1];
+          auto back_g = back.at<Vec3d>(i + location.x, j + location.y)[2];
 
-        auto alpha = front.at<Vec4d>(i, j)[3] / 255;
-        auto oneminusalpha = 1 - alpha;
+          auto alpha = front.at<Vec4d>(i, j)[3] / 255;
+          auto oneminusalpha = 1 - alpha;
 
-        back.at<Vec3d>(i + location.x, j + location.y)[0] = ((front_b * alpha) + (oneminusalpha * back_b));
-        back.at<Vec3d>(i + location.x, j + location.y)[1] = ((front_r * alpha) + (oneminusalpha * back_r));
-        back.at<Vec3d>(i + location.x, j + location.y)[2] = ((front_g * alpha) + (oneminusalpha * back_g));
+          back.at<Vec3d>(i + location.x, j + location.y)[0] = ((front_b * alpha) + (oneminusalpha * back_b));
+          back.at<Vec3d>(i + location.x, j + location.y)[1] = ((front_r * alpha) + (oneminusalpha * back_r));
+          back.at<Vec3d>(i + location.x, j + location.y)[2] = ((front_g * alpha) + (oneminusalpha * back_g));
+        }
       }
     }
   }
@@ -42,6 +46,7 @@ double generate_mean(Mat input)
 {
 
   double mean = 0.0;
+  #pragma omp parallel for reduction(+ : mean)
   for (int i = 0; i < input.rows; i++) 
   {
     for (int j = 0; j < input.cols; j++)
@@ -53,8 +58,33 @@ double generate_mean(Mat input)
   return mean;
 }
 
+Point p_with_max_dis(vector<Point> const& p1, vector<Point> const& p2)
+{
+  Point max_p = p1[0];
+  double max_dis = 0;
+  for (auto const& p1_elem : p1)
+  {
+    double dis = 0;
+    for (auto const& p2_elem : p2)
+    {
+      dis += cv::norm(p1_elem - p2_elem);
+    }
+    if (dis > max_dis)
+    {
+      max_p = p1_elem;
+      max_dis = dis;
+    }
+  }
+  return max_p;
+}
+
 std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, int max_res, std::string path, Mat texture, int stippling_dot_size, std::vector<float> const& tone_values)
 {
+  //Mat x1(50, 50, CV_64FC3);
+  //x1.setTo(Scalar(0, 0, 0));
+  //std::cout << "hi" << std::endl;
+  //texture.convertTo(texture, CV_64FC3);
+  //std::cout << generate_mean(texture) << std::endl;
   std::vector<std::shared_ptr<Walnut::Image>> tam;
   std::vector<std::shared_ptr<Mat>> cv_tam;
 
@@ -67,12 +97,13 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
   int x2_res = x3_res / 2;
   int x1_res = x2_res / 2;
   for (int i = 0; i < level; i++) {
-    std::cout << tam.size() << std::endl;
+    std::vector<std::vector<Point>> points(4);
     /*leftmost column*/
     if (tam.size() == 0)
     {
       std::cout << "tam.size: " << tam.size() << std::endl;
       std::cout << "cv_tam.size: " << cv_tam.size() << std::endl;
+      std::cout << "mean" << tone_values[i] << std::endl;
 
       //create images
       Mat x1(x1_res, x1_res, CV_64FC3);
@@ -97,24 +128,36 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
           default_random_engine gen{ rd() };
           //mt19937 gen(rd());
           //place textures randomly until desired tone value is reached
-          uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
-
-          //Point a(1, 3);
-          //Point b(5, 6);
-          //double res = cv::norm(a - b);//Euclidian distance
+          uniform_int_distribution<> distr(0 - texture.cols/2, mats[j].cols/* - texture.cols*/);
+          //place points from coarser level
+          if (j != 0)
+          {
+            for (int i = 0; i < points[j - 1].size(); i++)
+            {
+              Point new_pos(points[j - 1][i].x * 2, points[j - 1][i].y * 2);
+              overlay_PNG(mats[j], copy_tex, new_pos);
+              points[j].push_back(new_pos);
+            }
+          }
+          //generate candidate positions
+          std::vector<Point> candidate_points;
+          for (int num_points = 0; num_points < 20; num_points++)
+          {
+            candidate_points.push_back(Point(distr(gen), distr(gen)));
+          }
+          //pick position with greatest distance
+          //auto pos = p_with_max_dis(candidate_points, points[j]);
+          auto pos = Point(distr(gen), distr(gen));
+          overlay_PNG(mats[j], copy_tex, pos);
+          points[j].push_back(pos);
 
           tone_value = generate_mean(mats[j]);
-          /*std::cout << "mean:" << std::endl;
+          /*
+          std::cout << "mean:" << std::endl;
           std::cout << (int)tone_value << std::endl;
           std::cout << ">" << std::endl;
-          std::cout << (int)tone_values[0] << std::endl;*/
+          std::cout << (int)tone_values[i] << std::endl;*/
         }
-        /*if (j != 3)
-        {
-          auto point = (mats[j + 1].rows / 2) - (mats[j].rows / 2);
-          mats[j].copyTo(mats[j + 1](Rect(point,point, mats[j].rows, mats[j].cols)));
-        }*/
       }
 
       //Generate path
@@ -145,6 +188,7 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
     {
       std::cout << "tam.size: " << tam.size() << std::endl;
       std::cout << "cv_tam.size: " << cv_tam.size() << std::endl;
+      std::cout << "mean:" <<  tone_values[i] << std::endl;
       //copy left column
       Mat x1 = *cv_tam[cv_tam.size()-4];
       Mat x2 = *cv_tam[cv_tam.size() - 3];
@@ -159,23 +203,32 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
         double tone_value = generate_mean(mats[j]);
         while ((int)tone_value > (int)tone_values[i]) {
           //obtain a random number from hardware
-          std::random_device rd;
+          random_device rd;
           //seed the generator
-          std::mt19937 gen(rd());
+          default_random_engine gen{ rd() };
+          //mt19937 gen(rd());
           //place textures randomly until desired tone value is reached
-          std::uniform_int_distribution<> distr(0, mats[j].cols - texture.cols);
-          overlay_PNG(mats[j], copy_tex, Point(distr(gen), distr(gen)));
+          uniform_int_distribution<> distr(0 - texture.cols / 2, mats[j].cols/* - texture.cols*/);
+          //place points from coarser level
+          if (j != 0)
+          {
+            for (int i = 0; i < points[j - 1].size(); i++)
+            {
+              Point new_pos(points[j - 1][i].x * 2, points[j - 1][i].y * 2);
+              overlay_PNG(mats[j], copy_tex, new_pos);
+              points[j].push_back(new_pos);
+            }
+          }
+          auto pos = Point(distr(gen), distr(gen));
+          overlay_PNG(mats[j], copy_tex, pos);
+          points[j].push_back(pos);
+
           tone_value = generate_mean(mats[j]);
           /*std::cout << "mean:" << std::endl;
           std::cout << (int)tone_value << std::endl;
           std::cout << ">" << std::endl;
-          std::cout << (int)tone_values[0] << std::endl;*/
+          std::cout << (int)tone_values[i] << std::endl;*/
         }
-        /*if (j != 3)
-        {
-          auto point = (mats[j + 1].rows / 2) - (mats[j].rows / 2);
-          mats[j].copyTo(mats[j + 1](Rect(point, point, mats[j].rows, mats[j].cols)));
-        }*/
       }
 
       //Generate path
@@ -206,6 +259,6 @@ std::vector<std::shared_ptr<Walnut::Image>> Generator::generate_TAM(int level, i
     std::cout << "tam.size" << tam.size() << std::endl;
     std::cout << "level" << level << std::endl;*/
   }
-
+  std::cout << "done" << std::endl;
   return tam;
 }

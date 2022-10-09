@@ -462,6 +462,7 @@ namespace Walnut {
 		{
 			style.WindowRounding = 0.0f;
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+			style.WindowMinSize.x = 500.0f;
 		}
 
 		// Setup Platform/Renderer backends
