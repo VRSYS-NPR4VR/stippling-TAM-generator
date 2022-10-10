@@ -4,12 +4,12 @@
 #include <string>
 #include <shobjidl.h>
 #include <iostream>
+#include <filesystem>
 
 #include "Walnut/Image.h"
 #include "../Generator.h"
-//#ifndef loading.h
-//#include "../loading.h"
-//#endif // ! loading.cpp
+
+std::string tam_path = "./tam_images";
 
 class ExampleLayer : public Walnut::Layer
 {
@@ -34,7 +34,7 @@ public:
 		}
 
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
-		tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, size, tone_values);
+		tam = generator->generate_TAM(image_number, resolution, tam_path, *cv_texture, size, tone_values);
 	}
 	virtual void OnUIRender() override
 	{
@@ -45,17 +45,14 @@ public:
 		ImGui::Begin("Settings");
 		ImGui::BeginVertical(1);
 		ImGui::Text("Number of Columns:");
-		ImGui::SliderInt("cols", &image_number, 4, 10);
+		ImGui::SliderInt("##cols", &image_number, 4, 10);
 		ImGui::Text("Brightness brightest level:");
-		ImGui::SliderFloat("b1", &leftmost_tone_value, 500.0f, 900.0f);
+		ImGui::SliderFloat("##b1", &leftmost_tone_value, 500.0f, 900.0f);
 		ImGui::Text("Brightness darkest level:");
-		ImGui::SliderFloat("b2", &rightmost_tone_value, 100.0f, 500.0f);
+		ImGui::SliderFloat("##b2", &rightmost_tone_value, 100.0f, 500.0f);
 		ImGui::Text("Resolution:");
 		ImGui::Combo("", &current_item, " 540x540\0 1080x1080\0 2160x2160");
 		ImGui::Text("Stippling Texture:");
-		//ImGui::BeginDragDropSource;
-		//if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-		//{
 		if (ImGui::ImageButton(texture->GetDescriptorSet(), { 100.0f, 100.0f }))
 		{
 			ImGui::OpenPopup("select_texture");
@@ -71,20 +68,34 @@ public:
 					cv_texture = cv_textures[i];
 				}
 			}
-			if (ImGui::ImageButton(add->GetDescriptorSet(), {50.0f, 50.0f }))
+			ImGui::EndHorizontal();
+			ImGui::BeginHorizontal(101);
+			if (ImGui::Button("Add custom texture +", ImVec2(ImGui::GetItemRectSize().x, 0.0f)))
+				ImGui::OpenPopup("custom_texture");
+			if (ImGui::BeginPopup("custom_texture"))
 			{
-				if (ImGui::BeginDragDropSource())
+				ImGui::Text("Enter a valid path to your texture:");
+				static char buf1[64] = "";
+				ImGui::InputText("##default", buf1, 64);
+				bool exists = false;
+				for (auto const& element : ex_paths)
 				{
-					ImGui::EndDragDropSource();
+					if (element == buf1) {
+						exists = true;
+					}
 				}
+				if (std::filesystem::exists(buf1) && !exists) {
+					textures.push_back(std::make_shared<Walnut::Image>(buf1));
+					cv_textures.push_back(std::make_shared<cv::Mat>(cv::imread(buf1, cv::IMREAD_UNCHANGED)));
+					ex_paths.push_back(buf1);
+				}
+				ImGui::EndPopup();
 			}
 			ImGui::EndHorizontal();
-			/*ImGui::Text("Aquarium");
-			ImGui::Separator();*/
 			ImGui::EndPopup();
 		}
 		ImGui::SliderInt("size", &size, 1, 200);
-		//ImGui::EndDragDropSource;
+
 		if (current_item == 0) {
 			resolution = 540;
 		}
@@ -105,7 +116,7 @@ public:
 				initial -= step;
 				tone_values.push_back(initial);
 			}
-			tam = generator->generate_TAM(image_number, resolution, path, *cv_texture, size, tone_values);
+			tam = generator->generate_TAM(image_number, resolution, tam_path, *cv_texture, size, tone_values);
 		}
 		
 		ImGui::EndVertical();
@@ -127,7 +138,6 @@ public:
 			quad += 4;
 		}
 		ImGui::EndHorizontal();
-		/*ImGui::ShowDemoWindow();*/
 		ImGui::End();
 	}
 private:
@@ -139,11 +149,12 @@ private:
 	int image_number = 6;
 	int current_item = 1;
 	int resolution = 1080;
-	std::string path = "./tam_images";
+	std::string custom_tex_path = "";
 	std::shared_ptr<Generator> generator;
 	std::vector<std::shared_ptr<Walnut::Image>> tam;
 	int size = 100;
 	std::vector<float> tone_values;
+	std::vector<std::string> ex_paths;
 	float leftmost_tone_value = 700.0f;
 	float rightmost_tone_value = 400.0f;
 };
@@ -159,10 +170,6 @@ Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
 	{
 		if (ImGui::BeginMenu("File"))
 		{
-			if (ImGui::MenuItem("Set Path for TAM"))
-			{
-
-			}
 			if (ImGui::MenuItem("Exit"))
 			{
 				app->Close();
