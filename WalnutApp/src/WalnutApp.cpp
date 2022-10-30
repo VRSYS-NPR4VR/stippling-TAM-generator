@@ -16,15 +16,16 @@ class ExampleLayer : public Walnut::Layer
 public:
 	virtual void OnAttach() override 
 	{
-		//load example textures
+		//load example brush-textures
 		for (int i = 1; i <= 8; i++)
 		{
 			auto path = "example_" + std::to_string(i) + ".png";
 			textures.push_back(std::make_shared<Walnut::Image>(path));
 			cv_textures.push_back(std::make_shared<cv::Mat>(cv::imread(path, cv::IMREAD_UNCHANGED)));
 		}
+		
+		//initialize brightness values
 		texture = textures[0];
-		add = std::make_shared<Walnut::Image>("add.png");
 		cv_texture = cv_textures[0];
 		double initial = leftmost_tone_value;
 		double step = (leftmost_tone_value - rightmost_tone_value) / image_number;
@@ -33,6 +34,7 @@ public:
 			tone_values.push_back(initial);
 		}
 
+		//generate first TAM
 		std::shared_ptr<Generator> generator = std::make_shared<Generator>();
 		tam = generator->generate_TAM(image_number, resolution, tam_path, *cv_texture, size, tone_values);
 	}
@@ -143,7 +145,6 @@ public:
 private:
 	std::vector<std::shared_ptr<Walnut::Image>> textures;
 	std::shared_ptr<Walnut::Image> texture;
-	std::shared_ptr<Walnut::Image> add;
 	std::vector<std::shared_ptr<cv::Mat>> cv_textures;
 	std::shared_ptr<cv::Mat> cv_texture;
 	int image_number = 6;
