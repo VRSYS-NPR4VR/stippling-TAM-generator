@@ -7,7 +7,7 @@
 #include <filesystem>
 
 #include "Walnut/Image.h"
-#include "../Generator.h"
+#include "Generator.h"
 
 std::string tam_path = "./tam_images";
 
